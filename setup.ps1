@@ -52,7 +52,7 @@ if ($isRemote) {
 Write-Host ""
 Write-Host "[...] Installing dependencies..." -ForegroundColor Yellow
 Push-Location $SERVER_DIR
-npm install --silent
+npm.cmd install --silent
 Pop-Location
 Write-Host "[OK] Dependencies installed" -ForegroundColor Green
 
