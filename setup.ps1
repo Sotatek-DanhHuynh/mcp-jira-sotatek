@@ -96,24 +96,29 @@ if (-not $configPath) {
 }
 
 # 6. Cap nhat Claude config
-$config = Get-Content $configPath -Raw -Encoding UTF8 | ConvertFrom-Json
+# Dung string injection thay vi parse/serialize toan bo JSON de tranh mat data
+$serverIndexJson = ("$SERVER_DIR\index.js") -replace '\\', '\\'
 
-if (-not $config.mcpServers) {
-    $config | Add-Member -MemberType NoteProperty -Name "mcpServers" -Value ([PSCustomObject]@{})
-}
+# mcpServers block hoan chinh
+$mcpBlock = "  ""mcpServers"": {`n    ""jira"": {`n      ""command"": ""node"",`n      ""args"": [""$serverIndexJson""],`n      ""env"": {`n        ""JIRA_BASE_URL"": ""$JIRA_BASE_URL"",`n        ""JIRA_TOKEN"": ""$token""`n      }`n    }`n  }"
 
-$jiraServer = [PSCustomObject]@{
-    command = "node"
-    args    = @("$SERVER_DIR\index.js")
-    env     = [PSCustomObject]@{
-        JIRA_BASE_URL = $JIRA_BASE_URL
-        JIRA_TOKEN    = $token
+$configRaw = Get-Content $configPath -Raw -Encoding UTF8
+
+if ($configRaw -match '"mcpServers"') {
+    # Da co mcpServers -> thay the nguyen ca block (ho tro long 3 cap {})
+    $configRaw = $configRaw -replace '"mcpServers"\s*:\s*\{(?:[^{}]|\{(?:[^{}]|\{[^{}]*\})*\})*\}', $mcpBlock.TrimStart()
+} else {
+    $body = $configRaw.Trim()
+    if ($body -eq '{}' -or $body -eq '{') {
+        # Config rong
+        $configRaw = "{`n$mcpBlock`n}"
+    } else {
+        # Co noi dung -> chen truoc dau } cuoi
+        $configRaw = $body.TrimEnd('}').TrimEnd() + ",`n$mcpBlock`n}"
     }
 }
 
-$config.mcpServers | Add-Member -MemberType NoteProperty -Name "jira" -Value $jiraServer -Force
-
-$config | ConvertTo-Json -Depth 10 | Set-Content $configPath -Encoding UTF8
+$configRaw | Set-Content $configPath -Encoding UTF8
 
 Write-Host ""
 Write-Host "================================================" -ForegroundColor Green
