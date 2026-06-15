@@ -2,7 +2,7 @@
 #  MCP Jira Sotatek — Setup Script
 #  Cach 1: Right-click -> "Run with PowerShell" (thu muc local)
 #  Cach 2: irm https://raw.githubusercontent.com/Sotatek-DanhHuynh/mcp-jira-sotatek/master/setup.ps1 | iex
-#  Yeu cau: Node.js >= 18, Claude Desktop
+#  Yeu cau: Node.js >= 18, Claude Desktop hoac Claude Code CLI
 # ============================================================
 
 $ErrorActionPreference = "Stop"
@@ -69,7 +69,12 @@ if (-not $token) {
     exit 1
 }
 
-# 5. Tim duong dan Claude config (ho tro ca Windows Store va cai dat thuong)
+$serverIndex = "$SERVER_DIR\index.js"
+
+# 5. Cap nhat Claude Desktop config (claude_desktop_config.json)
+$serverIndexJson = $serverIndex -replace '\\', '\\'
+$mcpBlock = "  ""mcpServers"": {`n    ""jira"": {`n      ""command"": ""node"",`n      ""args"": [""$serverIndexJson""],`n      ""env"": {`n        ""JIRA_BASE_URL"": ""$JIRA_BASE_URL"",`n        ""JIRA_TOKEN"": ""$token""`n      }`n    }`n  }"
+
 $possiblePaths = @(
     (Get-ChildItem "$env:LOCALAPPDATA\Packages" -Filter "Claude_*" -ErrorAction SilentlyContinue |
         Select-Object -First 1 |
@@ -79,10 +84,7 @@ $possiblePaths = @(
 
 $configPath = $null
 foreach ($p in $possiblePaths) {
-    if ($p -and (Test-Path $p)) {
-        $configPath = $p
-        break
-    }
+    if ($p -and (Test-Path $p)) { $configPath = $p; break }
 }
 
 if (-not $configPath) {
@@ -90,35 +92,31 @@ if (-not $configPath) {
     $configDir = Split-Path $configPath
     if (-not (Test-Path $configDir)) { New-Item -ItemType Directory -Path $configDir -Force | Out-Null }
     '{}' | Set-Content $configPath -Encoding UTF8
-    Write-Host "[OK] Created config file at: $configPath" -ForegroundColor Green
-} else {
-    Write-Host "[OK] Found Claude config: $configPath" -ForegroundColor Green
 }
 
-# 6. Cap nhat Claude config
-# Dung string injection thay vi parse/serialize toan bo JSON de tranh mat data
-$serverIndexJson = ("$SERVER_DIR\index.js") -replace '\\', '\\'
-
-# mcpServers block hoan chinh
-$mcpBlock = "  ""mcpServers"": {`n    ""jira"": {`n      ""command"": ""node"",`n      ""args"": [""$serverIndexJson""],`n      ""env"": {`n        ""JIRA_BASE_URL"": ""$JIRA_BASE_URL"",`n        ""JIRA_TOKEN"": ""$token""`n      }`n    }`n  }"
-
-$configRaw = Get-Content $configPath -Raw -Encoding UTF8
-
-if ($configRaw -match '"mcpServers"') {
-    # Da co mcpServers -> thay the nguyen ca block (ho tro long 3 cap {})
-    $configRaw = $configRaw -replace '"mcpServers"\s*:\s*\{(?:[^{}]|\{(?:[^{}]|\{[^{}]*\})*\})*\}', $mcpBlock.TrimStart()
+$raw = Get-Content $configPath -Raw -Encoding UTF8
+if ($raw -match '"mcpServers"') {
+    $raw = $raw -replace '"mcpServers"\s*:\s*\{(?:[^{}]|\{(?:[^{}]|\{[^{}]*\})*\})*\}', $mcpBlock.TrimStart()
 } else {
-    $body = $configRaw.Trim()
+    $body = $raw.Trim()
     if ($body -eq '{}' -or $body -eq '{') {
-        # Config rong
-        $configRaw = "{`n$mcpBlock`n}"
+        $raw = "{`n$mcpBlock`n}"
     } else {
-        # Co noi dung -> chen truoc dau } cuoi
-        $configRaw = $body.TrimEnd('}').TrimEnd() + ",`n$mcpBlock`n}"
+        $raw = $body.TrimEnd('}').TrimEnd() + ",`n$mcpBlock`n}"
     }
 }
+$raw | Set-Content $configPath -Encoding UTF8
+Write-Host "[OK] Claude Desktop config updated" -ForegroundColor Green
 
-$configRaw | Set-Content $configPath -Encoding UTF8
+# 6. Dang ky voi Claude Code CLI (ghi vao ~/.claude.json, tu dong load o moi session)
+try {
+    $claudeCmd = Get-Command claude -ErrorAction Stop
+    claude mcp add -s user jira node $serverIndex -e "JIRA_BASE_URL=$JIRA_BASE_URL" -e "JIRA_TOKEN=$token" 2>&1 | Out-Null
+    Write-Host "[OK] Claude Code CLI config updated" -ForegroundColor Green
+} catch {
+    # Claude Code CLI chua cai -> bo qua, chi can Desktop config la du
+    Write-Host "[SKIP] Claude Code CLI not found, skipping" -ForegroundColor DarkGray
+}
 
 Write-Host ""
 Write-Host "================================================" -ForegroundColor Green
