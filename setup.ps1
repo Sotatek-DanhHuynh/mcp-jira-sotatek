@@ -91,7 +91,8 @@ if (-not $configPath) {
     $configPath = "$env:APPDATA\Claude\claude_desktop_config.json"
     $configDir = Split-Path $configPath
     if (-not (Test-Path $configDir)) { New-Item -ItemType Directory -Path $configDir -Force | Out-Null }
-    '{}' | Set-Content $configPath -Encoding UTF8
+    $noBom = New-Object System.Text.UTF8Encoding $false
+    [System.IO.File]::WriteAllText($configPath, '{}', $noBom)
 }
 
 $raw = Get-Content $configPath -Raw -Encoding UTF8
@@ -105,7 +106,8 @@ if ($raw -match '"mcpServers"') {
         $raw = $body.TrimEnd('}').TrimEnd() + ",`n$mcpBlock`n}"
     }
 }
-$raw | Set-Content $configPath -Encoding UTF8
+$noBom = New-Object System.Text.UTF8Encoding $false
+[System.IO.File]::WriteAllText($configPath, $raw, $noBom)
 Write-Host "[OK] Claude Desktop config updated" -ForegroundColor Green
 
 # 6. Dang ky voi Claude Code CLI (ghi vao ~/.claude.json, tu dong load o moi session)
