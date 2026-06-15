@@ -7,7 +7,7 @@
 
 $ErrorActionPreference = "Stop"
 $JIRA_BASE_URL = "https://projects.plan-task.dev"
-$REPO_RAW = "https://raw.githubusercontent.com/Sotatek-DanhHuynh/mcp-jira-sotatek/main"
+$REPO_RAW = "https://raw.githubusercontent.com/Sotatek-DanhHuynh/mcp-jira-sotatek/master"
 
 Write-Host ""
 Write-Host "================================================" -ForegroundColor Cyan

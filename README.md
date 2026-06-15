@@ -14,7 +14,7 @@ Kết nối Claude với Jira nội bộ để đọc, tạo, sửa, xóa ticket
 Mở PowerShell, chạy:
 
 ```powershell
-irm https://raw.githubusercontent.com/Sotatek-DanhHuynh/mcp-jira-sotatek/main/setup.ps1 | iex
+irm https://raw.githubusercontent.com/Sotatek-DanhHuynh/mcp-jira-sotatek/master/setup.ps1 | iex
 ```
 
 ### Cách 2 — Chạy local (đã clone/copy folder về máy)
