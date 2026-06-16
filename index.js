@@ -102,6 +102,30 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
       },
     },
     {
+      name: 'get_transitions',
+      description: 'Lấy danh sách transitions (chuyển status) khả dụng của một Jira issue',
+      inputSchema: {
+        type: 'object',
+        properties: {
+          issueKey: { type: 'string', description: 'VD: MPHBC-447' },
+        },
+        required: ['issueKey'],
+      },
+    },
+    {
+      name: 'transition_issue',
+      description: 'Chuyển status của một Jira issue (VD: Open -> In Progress). Dùng get_transitions trước để lấy danh sách transitions.',
+      inputSchema: {
+        type: 'object',
+        properties: {
+          issueKey: { type: 'string', description: 'VD: MPHBC-447' },
+          transitionId: { type: 'string', description: 'ID của transition (lấy từ get_transitions)' },
+          transitionName: { type: 'string', description: 'Tên transition (VD: "In Progress"). Dùng thay thế transitionId nếu không biết id.' },
+        },
+        required: ['issueKey'],
+      },
+    },
+    {
       name: 'get_attachment',
       description: 'Download ảnh/file đính kèm trong Jira issue để xem nội dung',
       inputSchema: {
@@ -205,6 +229,40 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       }));
       return {
         content: [{ type: 'text', text: JSON.stringify(issues, null, 2) }],
+      };
+    }
+
+    if (name === 'get_transitions') {
+      const { data } = await jira.get(`/issue/${args.issueKey}/transitions`);
+      const transitions = data.transitions.map((t) => ({
+        id: t.id,
+        name: t.name,
+        toStatus: t.to?.name,
+      }));
+      return {
+        content: [{ type: 'text', text: JSON.stringify(transitions, null, 2) }],
+      };
+    }
+
+    if (name === 'transition_issue') {
+      let transitionId = args.transitionId;
+      if (!transitionId && args.transitionName) {
+        const { data } = await jira.get(`/issue/${args.issueKey}/transitions`);
+        const match = data.transitions.find(
+          (t) => t.name.toLowerCase() === args.transitionName.toLowerCase(),
+        );
+        if (!match) {
+          const names = data.transitions.map((t) => t.name).join(', ');
+          throw new Error(`Không tìm thấy transition "${args.transitionName}". Các transition khả dụng: ${names}`);
+        }
+        transitionId = match.id;
+      }
+      if (!transitionId) throw new Error('Cần cung cấp transitionId hoặc transitionName');
+      await jira.post(`/issue/${args.issueKey}/transitions`, {
+        transition: { id: transitionId },
+      });
+      return {
+        content: [{ type: 'text', text: `Đã chuyển status ${args.issueKey} thành công (transition id: ${transitionId}).` }],
       };
     }
 
