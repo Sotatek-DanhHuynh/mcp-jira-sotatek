@@ -89,12 +89,14 @@ Based on the user's choice:
 
 For each issue to fix:
 1. Re-read full details with `mcp__jira__read_issue` if description wasn't loaded
-2. Use `mcp__jira__update_issue` to transition the issue status to **IN PROGRESS** before touching any code
+2. Use `mcp__jira__transition_issue` to transition the issue status to **IN PROGRESS** before touching any code
 3. Find relevant files using `Grep` / `Glob` based on component name, screen name, or keywords from the title
 4. Read enough code context to understand the problem
 5. Implement the fix with `Edit`
 
-For step 2, the transition name is `"in progress"` (case-insensitive). Use the `update_issue` tool with the appropriate transition field.
+For step 2, use `mcp__jira__transition_issue` with `transitionName: "in progress"` (case-insensitive). Do NOT use `mcp__jira__update_issue` for status changes — it silently reports success without actually transitioning the issue. After calling `transition_issue`, verify with `mcp__jira__read_issue` that `status` actually changed before moving on.
+
+Workflow transitions are sequential (e.g. To Do → In Progress → In review) — you generally cannot jump straight from To Do to a later status. Use `mcp__jira__get_transitions` first if unsure which transitions are available from the current status, and step through them in order.
 
 Do NOT add any comments to Jira tickets. Do NOT modify the issue title, description, or any other fields besides the status transition.
 
