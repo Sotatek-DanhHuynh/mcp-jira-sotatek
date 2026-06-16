@@ -120,6 +120,32 @@ try {
     Write-Host "[SKIP] Claude Code CLI not found, skipping" -ForegroundColor DarkGray
 }
 
+# 7. Cai SKILL fix-open-issues vao project hien tai (neu dang dung trong project)
+Write-Host ""
+Write-Host "[...] Checking for project skill installation..." -ForegroundColor Yellow
+
+$cwd = (Get-Location).Path
+$isProject = (Test-Path "$cwd\.git") -or (Test-Path "$cwd\package.json")
+
+if ($isProject) {
+    $skillDir = "$cwd\.claude\skills\fix-open-issues"
+    $skillFile = "$skillDir\SKILL.md"
+
+    if (-not (Test-Path "$cwd\.claude")) {
+        New-Item -ItemType Directory -Path "$cwd\.claude" -Force | Out-Null
+        Write-Host "[OK] Created .claude/" -ForegroundColor Green
+    }
+    if (-not (Test-Path $skillDir)) {
+        New-Item -ItemType Directory -Path $skillDir -Force | Out-Null
+    }
+
+    Invoke-WebRequest "$REPO_RAW/skills/fix-open-issues/SKILL.md" -OutFile $skillFile
+    Write-Host "[OK] Skill installed: .claude/skills/fix-open-issues/SKILL.md" -ForegroundColor Green
+} else {
+    Write-Host "[SKIP] Not in a project directory (no .git or package.json found)." -ForegroundColor DarkGray
+    Write-Host "       To install the skill later: cd <your-project> then re-run this script." -ForegroundColor DarkGray
+}
+
 Write-Host ""
 Write-Host "================================================" -ForegroundColor Green
 Write-Host "   Setup complete!" -ForegroundColor Green
